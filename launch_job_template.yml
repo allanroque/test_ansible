@@ -11,4 +11,3 @@
         job_template: "{{ job_template_name }}"
         extra_vars: "{{ extra_vars | default(omit) }}"
         limit: "{{ host_name | default(omit) }}"
-        state: started
