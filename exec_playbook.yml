@@ -4,7 +4,7 @@
   become: no
   tasks:
     - name: Execute 'ls' command
-      ansible.builtin.command: "ls -lah"
+      ansible.builtin.command: "ls -lah /"
       register: ls_output
 
     - name: Show command output

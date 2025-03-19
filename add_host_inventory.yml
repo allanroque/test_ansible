@@ -10,4 +10,5 @@
       ansible.controller.host:
         name: "{{ host_name }}"
         inventory: "{{ inventory_name }}"
+        enabled: true
         state: present
