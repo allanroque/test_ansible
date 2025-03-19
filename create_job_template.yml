@@ -19,3 +19,7 @@
         credential: "{{ credential_name | default(omit) }}"
         ask_limit: yes  # Habilita a opção "Limit on Launch"
         state: present
+
+    - name: Identificar Node de Execução
+      debug:
+        msg: "Este job está rodando no node: {{ ansible_env.HOSTNAME }}"
