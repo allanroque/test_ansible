@@ -22,4 +22,4 @@
 
     - name: Identificar Node de Execução
       debug:
-        msg: "Este job está rodando no node: {{ ansible_env.HOSTNAME }}"
+        msg: "Este job está rodando no node: {{ lookup('env', 'HOSTNAME') }}"
