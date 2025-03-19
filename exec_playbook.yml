@@ -1,6 +1,6 @@
 ---
 - name: Run 'ls' command on a Linux server
-  hosts: all
+  hosts: {{ host_name }}
   become: no
   tasks:
     - name: Execute 'ls' command
