@@ -1,0 +1,21 @@
+---
+- name: Create a Job Template in Ansible Automation Controller
+  hosts: localhost
+  gather_facts: no
+  vars:
+    job_template_name: Create_Job_Template
+    inventory_name: Inventory_Test
+    project_name: Proj_Test
+    playbook_path: exec_playbook.yml
+    credential_name: CRED_SSH_ANSIBLE
+  tasks:
+    - name: Create job template with Limit on Launch enabled
+      ansible.controller.job_template:
+        name: "{{ job_template_name }}"
+        job_type: "run"
+        inventory: "{{ inventory_name }}"
+        project: "{{ project_name }}"
+        playbook: "{{ playbook_path }}"
+        credential: "{{ credential_name | default(omit) }}"
+        ask_limit: yes  # Habilita a opção "Limit on Launch"
+        state: present

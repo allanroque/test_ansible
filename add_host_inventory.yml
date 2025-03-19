@@ -1,0 +1,13 @@
+---
+- name: Add Host to Ansible Automation Controller Inventory
+  hosts: localhost
+  gather_facts: no
+  vars:
+    inventory_name: Inventory_Test
+    host_name:
+  tasks:
+    - name: Add a host to the inventory
+      ansible.controller.host:
+        name: "{{ host_name }}"
+        inventory: "{{ inventory_name }}"
+        state: present

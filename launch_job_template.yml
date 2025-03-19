@@ -1,0 +1,14 @@
+---
+- name: Launch a Job Template in Ansible Automation Controller
+  hosts: localhost
+  vars:
+    job_template_name: Create_Job_Template
+    host_name:
+  gather_facts: no
+  tasks:
+    - name: Launch Job Template
+      ansible.controller.job_launch:
+        job_template: "{{ job_template_name }}"
+        extra_vars: "{{ extra_vars | default(omit) }}"
+        limit: "{{ limit | default(omit) }}"
+        state: started

@@ -1,0 +1,12 @@
+---
+- name: Run 'ls' command on a Linux server
+  hosts: all
+  become: no
+  tasks:
+    - name: Execute 'ls' command
+      ansible.builtin.command: "ls -lah"
+      register: ls_output
+
+    - name: Show command output
+      debug:
+        var: ls_output.stdout
