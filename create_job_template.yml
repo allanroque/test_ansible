@@ -3,7 +3,7 @@
   hosts: localhost
   gather_facts: no
   vars:
-    job_template_name: Create_Job_Template
+    job_template_name: Exec_Job_Template
     inventory_name: Inventory_Test
     project_name: Proj_Test
     playbook_path: exec_playbook.yml
