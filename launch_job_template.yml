@@ -11,7 +11,12 @@
         job_template: "{{ job_template_name }}"
         extra_vars: "{{ extra_vars | default(omit) }}"
         limit: "{{ host_name | default(omit) }}"
+      register: resultado_job
 
-    - name: Identificar Node de Execução
+    - name: Exibir resultado da execução do job
       debug:
-        msg: "Este job está rodando no node: {{ lookup('env', 'HOSTNAME') }}"
+        var: resultado_job
+
+    - name: Exibir ID do job lançado
+      debug:
+        msg: "Job ID lançado: {{ resultado_job.id }}"x
