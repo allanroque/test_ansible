@@ -21,8 +21,30 @@
       debug:
         msg: "Job ID lançado: {{ resultado_job.id }}"
 
+    - name: Aguardar conclusão do job
+      ansible.controller.job_wait:
+        job_id: "{{ resultado_job.id }}"
+        timeout: "{{ job_timeout }}"
+      register: resultado_espera
+
+    - name: Buscar detalhes do job executado
+      ansible.controller.job_list:
+        query:
+          id: "{{ resultado_job.id }}"
+      register: detalhes_job
+
+    - name: Exibir status final do job
+      debug:
+        msg: "Status final do job ID {{ resultado_job.id }}: {{ detalhes_job.results[0].status }}"
+
     - name: Compartilhar status e ID com o workflow
       set_stats:
         data:
-          job_status: "{{ resultado_job.status | default('indefinido') }}"
-          job_id: "{{ resultado_job.id | default('sem_id') }}"
+          job_id: "{{ resultado_job.id }}"
+          job_status: "{{ detalhes_job.results[0].status }}"
+          job_url: "{{ detalhes_job.results[0].related.stdout }}"
+
+    - name: Falhar caso o job não tenha sido bem-sucedido
+      fail:
+        msg: "O job ID {{ resultado_job.id }} falhou com status: {{ detalhes_job.results[0].status }}"
+      when: detalhes_job.results[0].status != 'successful'
