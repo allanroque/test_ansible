@@ -1,0 +1,32 @@
+---
+- name: Tracking Exec Template
+  hosts: localhost
+  gather_facts: no
+  vars:
+    job_timeout: 300  # tempo de espera máximo pelo job
+
+  tasks:
+    - name: Exibir job_id a ser monitorado
+      debug:
+        msg: "Monitorando o job com ID: {{ exec_job_id }}"
+
+    - name: Aguardar finalização do job
+      ansible.controller.job_wait:
+        job_id: "{{ exec_job_id }}"
+        timeout: "{{ job_timeout }}"
+      register: resultado_espera
+
+    - name: Coletar detalhes da execução do job
+      ansible.controller.job_list:
+        query:
+          id: "{{ exec_job_id }}"
+      register: detalhes_job
+
+    - name: Exibir status final do job
+      debug:
+        msg: "Status final do job {{ exec_job_id }}: {{ detalhes_job.results[0].status }}"
+
+    - name: Falhar caso o job não tenha sido bem-sucedido
+      fail:
+        msg: "O job ID {{ exec_job_id }} falhou com status: {{ detalhes_job.results[0].status }}"
+      when: detalhes_job.results[0].status != 'successful'
