@@ -19,4 +19,10 @@
 
     - name: Exibir ID do job lançado
       debug:
-        msg: "Job ID lançado: {{ resultado_job.id }}"x
+        msg: "Job ID lançado: {{ resultado_job.id }}"
+
+    - name: Compartilhar status e ID com o workflow
+      set_stats:
+        data:
+          job_status: "{{ resultado_job.status | default('indefinido') }}"
+          job_id: "{{ resultado_job.id | default('sem_id') }}"
