@@ -2,10 +2,17 @@
 - name: Verificar carga da CPU e identificar maiores consumidores
   hosts: all
   gather_facts: true
+  gather_subset:
+    - all
   vars:
     load_threshold: 2.00
 
   tasks:
+
+    - name: Verificar se ansible_loadavg está presente
+      fail:
+        msg: "O fato ansible_loadavg não está disponível neste host."
+      when: ansible_facts.ansible_loadavg is not defined
 
     - name: Obter load average a partir dos facts
       set_fact:
@@ -24,36 +31,3 @@
     - name: Mostrar status
       debug:
         msg: "Status: {{ cpu_status }} | Mensagem: {{ cpu_message }}"
-
-    - name: Obter processo com maior uso de CPU (caso necessário)
-      when: cpu_status == "NOK"
-      ansible.builtin.shell: "ps -eo pid,comm,%cpu --sort=-%cpu | awk 'NR==2'"
-      register: top_cpu_process
-      changed_when: false
-
-    - name: Extrair dados do processo
-      when: cpu_status == "NOK"
-      set_fact:
-        processo_info: "{{ top_cpu_process.stdout | regex_replace(' +', ' ') | split(' ') }}"
-        processo_pid: "{{ processo_info[0] }}"
-        processo_nome: "{{ processo_info[1] }}"
-        processo_cpu: "{{ processo_info[2] }}"
-
-    - name: Obter dados do usuário do processo
-      when: cpu_status == "NOK"
-      ansible.builtin.user:
-        name: "{{ lookup('pipe', 'ps -o user= -p ' + processo_pid) }}"
-        update_password: on_create
-      register: user_info
-      ignore_errors: true  # evita erro caso o usuário seja do sistema ou não tenha entrada no /etc/passwd
-
-    - name: Exibir informações detalhadas em caso de load alto
-      when: cpu_status == "NOK"
-      debug:
-        msg: |
-          ALTA CARGA DETECTADA!
-          Processo: {{ processo_nome }}
-          PID: {{ processo_pid }}
-          Consumo de CPU: {{ processo_cpu }}%
-          Usuário: {{ lookup('pipe', 'ps -o user= -p ' + processo_pid) }}
-          Nome completo: {{ user_info.user.get('comment', 'N/A') if user_info is defined else 'Indisponível' }}
