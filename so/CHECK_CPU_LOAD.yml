@@ -28,9 +28,10 @@
           register: uptime_output
           changed_when: false
 
-        - name: Extrair valor do load average de 1 minuto
-          set_fact:
-            load_average: "{{ uptime_output.stdout | regex_search('load average: ([0-9\\.]+)', '\\1') | float }}"
+    - name: Extrair valor do load average de 1 minuto
+      set_fact:
+        load_average: "{{ (uptime_output.stdout | regex_findall('[0-9]+\\.[0-9]+'))[0] | float }}"
+
 
     - name: Verificar se load está abaixo do limite
       when: (load_average | float) < (load_threshold | float)
