@@ -8,6 +8,7 @@
     status: "UNKNOWN"
     categoria: ""
     mensagem: ""
+    processo_disponivel: false
 
   tasks:
 
@@ -53,8 +54,13 @@
           register: top_process
           changed_when: false
 
-        - name: Extrair dados do processo
+        - name: Verificar se processo foi retornado com sucesso
+          set_fact:
+            processo_disponivel: true
           when: top_process.stdout is defined and top_process.stdout | trim != ""
+
+        - name: Extrair dados do processo
+          when: processo_disponivel
           set_fact:
             processo_info: "{{ top_process.stdout | regex_replace(' +', ' ') | split(' ') }}"
             processo_pid: "{{ processo_info[0] }}"
@@ -63,13 +69,13 @@
             processo_user: "{{ processo_info[3] }}"
 
         - name: Obter nome completo do usuário
-          when: processo_user is defined
+          when: processo_disponivel
           ansible.builtin.shell: "getent passwd {{ processo_user }} | cut -d ':' -f 5"
           register: user_fullname
           changed_when: false
 
         - name: Definir status NOK e mensagem detalhada
-          when: processo_nome is defined and processo_user is defined and user_fullname is defined
+          when: processo_disponivel
           set_fact:
             status: "NOK"
             categoria: "RETRY"
@@ -82,7 +88,7 @@
               ATUAL: {{ load_average }}
 
         - name: "[FALHA] Nenhum processo retornado pelo ps"
-          when: top_process.stdout is not defined or top_process.stdout | trim == ""
+          when: not processo_disponivel
           set_fact:
             status: "NOK"
             categoria: "SCRIPT"
