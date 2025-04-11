@@ -1,18 +1,26 @@
 ---
-- name: Verificar carga da CPU com fallback e comparação segura
+- name: Verificar carga da CPU e identificar ofensores (versão completa)
   hosts: all
   gather_facts: true
   vars:
     load_threshold: 2.00
+    trace: ""
+    status: "UNKNOWN"
+    categoria: ""
+    mensagem: ""
 
   tasks:
 
-    - name: Tentar obter load_average dos facts (caso esteja disponível)
+    - name: [TRACE] Início do playbook
+      set_fact:
+        trace: "{{ trace }} Início do playbook |"
+
+    - name: Tentar obter load_average dos facts
       set_fact:
         load_average: "{{ ansible_facts.ansible_loadavg['1m'] | float }}"
       when: ansible_facts.ansible_loadavg is defined
 
-    - name: Fallback - obter load average via shell caso fato não esteja disponível
+    - name: Fallback - obter load average via uptime
       when: ansible_facts.ansible_loadavg is not defined
       block:
         - name: Executar uptime
@@ -24,16 +32,52 @@
           set_fact:
             load_average: "{{ uptime_output.stdout | regex_search('load average: ([0-9\\.]+)', '\\1') | float }}"
 
-    - name: Comparar carga com limite
+    - name: Verificar se load está abaixo do limite
+      when: load_average < load_threshold
       set_fact:
-        cpu_status: "{{ 'OK' if (load_average | float) < (load_threshold | float) else 'NOK' }}"
-        cpu_message: >-
-          {% if (load_average | float) < (load_threshold | float) %}
-            Load abaixo do limite ({{ load_average }} < {{ load_threshold }})
-          {% else %}
-            Load acima do limite ({{ load_average }} >= {{ load_threshold }})
-          {% endif %}
+        trace: "{{ trace }} Load average abaixo do limite |"
+        status: "OK"
+        categoria: "SUCESSO_RETRY"
+        mensagem: "Load average está menor do que o alerta. LIMITE: {{ load_threshold }} ATUAL: {{ load_average }}"
 
-    - name: Exibir resultado
+    - name: Verificar se load está acima do limite
+      when: load_average >= load_threshold
+      block:
+
+        - name: Atualizar trace para alta carga
+          set_fact:
+            trace: "{{ trace }} Load average acima do permitido |"
+
+        - name: Obter maior processo consumidor de CPU
+          ansible.builtin.shell: "ps -eo pid,comm,%cpu,user --sort=-%cpu | awk 'NR==2'"
+          register: top_process
+          changed_when: false
+
+        - name: Extrair dados do processo
+          set_fact:
+            processo_info: "{{ top_process.stdout | regex_replace(' +', ' ') | split(' ') }}"
+            processo_pid: "{{ processo_info[0] }}"
+            processo_nome: "{{ processo_info[1] }}"
+            processo_cpu: "{{ processo_info[2] }}"
+            processo_user: "{{ processo_info[3] }}"
+
+        - name: Obter nome completo do usuário
+          ansible.builtin.shell: "getent passwd {{ processo_user }} | cut -d ':' -f 5"
+          register: user_fullname
+          changed_when: false
+
+        - name: Definir status NOK e mensagem detalhada
+          set_fact:
+            status: "NOK"
+            categoria: "RETRY"
+            mensagem: >-
+              MAIOR PROCESSO CONSUMIDOR DE CPU: {{ processo_nome }},
+              CONSUMO: {{ processo_cpu }}%,
+              USUÁRIO: {{ processo_user }},
+              RESPONSÁVEL: {{ user_fullname.stdout.strip() }},
+              LIMITE: {{ load_threshold }},
+              ATUAL: {{ load_average }}
+
+    - name: Exibir saída final no formato script
       debug:
-        msg: "Status: {{ cpu_status }} | Mensagem: {{ cpu_message }}"
+        msg: "{{ status }};{{ categoria }};{{ mensagem }};{{ trace }}"
