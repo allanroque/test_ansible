@@ -59,23 +59,22 @@
             processo_disponivel: true
           when: top_process.stdout is defined and top_process.stdout | trim != ""
 
-        - name: Extrair dados do processo
+        - name: Extrair variáveis individuais do processo
           when: processo_disponivel
           set_fact:
-            processo_info: "{{ top_process.stdout | regex_replace(' +', ' ') | split(' ') }}"
-            processo_pid: "{{ processo_info[0] }}"
-            processo_nome: "{{ processo_info[1] }}"
-            processo_cpu: "{{ processo_info[2] }}"
-            processo_user: "{{ processo_info[3] }}"
+            processo_pid: "{{ (top_process.stdout | regex_replace(' +', ' ') | split(' '))[0] | default('') }}"
+            processo_nome: "{{ (top_process.stdout | regex_replace(' +', ' ') | split(' '))[1] | default('') }}"
+            processo_cpu: "{{ (top_process.stdout | regex_replace(' +', ' ') | split(' '))[2] | default('') }}"
+            processo_user: "{{ (top_process.stdout | regex_replace(' +', ' ') | split(' '))[3] | default('') }}"
 
         - name: Obter nome completo do usuário
-          when: processo_disponivel
+          when: processo_disponivel and processo_user != ""
           ansible.builtin.shell: "getent passwd {{ processo_user }} | cut -d ':' -f 5"
           register: user_fullname
           changed_when: false
 
         - name: Definir status NOK e mensagem detalhada
-          when: processo_disponivel
+          when: processo_disponivel and processo_nome != "" and processo_user != "" and user_fullname is defined
           set_fact:
             status: "NOK"
             categoria: "RETRY"
