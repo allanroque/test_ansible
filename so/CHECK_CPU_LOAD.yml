@@ -11,7 +11,7 @@
 
   tasks:
 
-    - name: [TRACE] Início do playbook
+    - name: "[TRACE] Início do playbook"
       set_fact:
         trace: "{{ trace }} Início do playbook |"
 
@@ -44,7 +44,7 @@
       when: load_average >= load_threshold
       block:
 
-        - name: Atualizar trace para alta carga
+        - name: "[TRACE] Load average acima do permitido"
           set_fact:
             trace: "{{ trace }} Load average acima do permitido |"
 
