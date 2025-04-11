@@ -1,5 +1,5 @@
 ---
-- name: Verificar carga da CPU e identificar ofensores (versão completa e corrigida)
+- name: Verificar carga da CPU e identificar ofensores
   hosts: all
   gather_facts: true
   vars:
@@ -82,7 +82,7 @@
                   LIMITE: {{ load_threshold }},
                   ATUAL: {{ load_average }}
 
-        - name: [FALHA] Nenhum processo retornado pelo ps
+        - name: "[FALHA] Nenhum processo retornado pelo ps"
           when: top_process.stdout is not defined or top_process.stdout | trim == ""
           set_fact:
             status: "NOK"
