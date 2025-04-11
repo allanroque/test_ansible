@@ -77,6 +77,11 @@
           register: user_fullname
           changed_when: false
 
+        - name: "[DEBUG] Mostrar saída bruta do top_process"
+          when: processo_disponivel
+          debug:
+            var: top_process.stdout
+
         - name: Definir status NOK e mensagem detalhada
           when: processo_disponivel and processo_nome != "" and processo_user != "" and user_fullname is defined
           set_fact:
@@ -90,6 +95,13 @@
               RESPONSÁVEL: {{ user_fullname.stdout.strip() }}
               LIMITE: {{ load_threshold }}
               ATUAL: {{ load_average }}
+
+        - name: "[FALHA] Processo extraído mas dados incompletos"
+          when: processo_disponivel and status == "UNKNOWN"
+          set_fact:
+            status: "NOK"
+            categoria: "SCRIPT"
+            mensagem: "Processo encontrado, mas dados incompletos para exibir relatório."
 
         - name: "[FALHA] Nenhum processo retornado pelo ps"
           when: not processo_disponivel
