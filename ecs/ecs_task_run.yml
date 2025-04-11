@@ -1,0 +1,12 @@
+- name: Run ECS Task
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run ECS task
+      community.aws.ecs_task:
+        cluster: "{{ ecs_cluster }}"
+        task_definition: "{{ ecs_task_def }}"
+        launch_type: FARGATE
+        count: 1
+        region: "{{ aws_region }}"

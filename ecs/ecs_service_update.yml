@@ -1,0 +1,13 @@
+- name: Update ECS Service
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Update ECS service
+      community.aws.ecs_service:
+        cluster: "{{ ecs_cluster }}"
+        name: "{{ ecs_service }}"
+        desired_count: "{{ ecs_count | default(omit) }}"
+        task_definition: "{{ ecs_task_def | default(omit) }}"
+        state: present
+        region: "{{ aws_region }}"

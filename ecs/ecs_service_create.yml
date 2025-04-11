@@ -1,0 +1,13 @@
+- name: Create ECS Service
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Create ECS service
+      community.aws.ecs_service:
+        cluster: "{{ ecs_cluster }}"
+        name: "{{ ecs_service }}"
+        task_definition: "{{ ecs_task_def }}"
+        desired_count: "{{ ecs_count }}"
+        state: present
+        region: "{{ aws_region }}"

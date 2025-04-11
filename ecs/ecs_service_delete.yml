@@ -1,0 +1,12 @@
+- name: Delete ECS Service
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Delete ECS service
+      community.aws.ecs_service:
+        cluster: "{{ ecs_cluster }}"
+        name: "{{ ecs_service }}"
+        state: absent
+        force: true
+        region: "{{ aws_region }}"

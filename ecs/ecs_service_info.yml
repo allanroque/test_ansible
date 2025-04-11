@@ -1,0 +1,15 @@
+- name: Get ECS Service Info
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Retrieve ECS service info
+      community.aws.ecs_service_info:
+        cluster: "{{ ecs_cluster }}"
+        services: "{{ ecs_service }}"
+#        details: true #Set this to true if you want detailed information about the services.
+        region: "{{ aws_region }}"
+      register: service_data
+
+    - debug:
+        var: service_data
