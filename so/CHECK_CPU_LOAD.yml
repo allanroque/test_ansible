@@ -1,5 +1,5 @@
 ---
-- name: Verificar carga da CPU usando facts
+- name: Verificar carga da CPU com fallback
   hosts: all
   gather_facts: true
   vars:
@@ -7,14 +7,22 @@
 
   tasks:
 
-    - name: Garantir que ansible_loadavg existe
-      fail:
-        msg: "O fato ansible_loadavg não está disponível."
-      when: ansible_facts.ansible_loadavg is not defined
-
-    - name: Definir carga média de 1 minuto
+    - name: Tentar obter load_average dos facts
       set_fact:
         load_average: "{{ ansible_facts.ansible_loadavg['1m'] | float }}"
+      when: ansible_facts.ansible_loadavg is defined
+
+    - name: Fallback - obter load average via shell caso fato não esteja disponível
+      when: ansible_facts.ansible_loadavg is not defined
+      block:
+        - name: Executar uptime
+          ansible.builtin.shell: uptime
+          register: uptime_output
+          changed_when: false
+
+        - name: Extrair valor do load average de 1 minuto
+          set_fact:
+            load_average: "{{ uptime_output.stdout | regex_search('load average: ([0-9\\.]+)', '\\1') | float }}"
 
     - name: Comparar carga com limite
       set_fact:
@@ -26,6 +34,6 @@
             Load acima do limite ({{ load_average }} >= {{ load_threshold }})
           {% endif %}
 
-    - name: Mostrar status final
+    - name: Exibir resultado
       debug:
         msg: "Status: {{ cpu_status }} | Mensagem: {{ cpu_message }}"
