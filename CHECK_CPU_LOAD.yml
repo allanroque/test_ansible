@@ -1,0 +1,65 @@
+---
+- name: Verificar carga da CPU e identificar maiores consumidores
+  hosts: all
+  gather_facts: true
+  vars:
+    load_threshold: 2.00  # ajuste esse valor conforme sua política
+
+  tasks:
+
+    - name: Obter carga média da CPU
+      ansible.builtin.shell: uptime
+      register: uptime_output
+
+    - name: Extrair load average de 1 minuto
+      set_fact:
+        load_average: "{{ (uptime_output.stdout | regex_search('load average: ([0-9\\.]+)', '\\1')) | float }}"
+
+    - name: Comparar carga com limite
+      set_fact:
+        cpu_status: "{{ 'OK' if load_average < load_threshold else 'NOK' }}"
+        cpu_message: >-
+          {% if load_average < load_threshold %}
+            Load abaixo do limite ({{ load_average }} < {{ load_threshold }})
+          {% else %}
+            Load acima do limite ({{ load_average }} >= {{ load_threshold }})
+          {% endif %}
+
+    - name: Mostrar status
+      debug:
+        msg: "Status: {{ cpu_status }} | Mensagem: {{ cpu_message }}"
+
+    - name: Obter maior processo consumidor de CPU (caso load esteja alto)
+      when: cpu_status == "NOK"
+      ansible.builtin.shell: "ps -eo pid,comm,%cpu --sort=-%cpu | head -n 2 | tail -n 1"
+      register: top_cpu_process
+
+    - name: Extrair dados do processo
+      when: cpu_status == "NOK"
+      set_fact:
+        processo_info: >-
+          {{ top_cpu_process.stdout | regex_replace(' +', ' ') | split(' ') }}
+        processo_pid: "{{ processo_info[0] }}"
+        processo_nome: "{{ processo_info[1] }}"
+        processo_cpu: "{{ processo_info[2] }}"
+
+    - name: Obter usuário do processo
+      when: cpu_status == "NOK"
+      ansible.builtin.shell: "ps -o user= -p {{ processo_pid }}"
+      register: processo_usuario
+
+    - name: Obter nome completo do usuário
+      when: cpu_status == "NOK"
+      ansible.builtin.shell: "getent passwd {{ processo_usuario.stdout }} | cut -d ':' -f 5"
+      register: user_fullname
+
+    - name: Exibir informações detalhadas em caso de load alto
+      when: cpu_status == "NOK"
+      debug:
+        msg: >
+          ALTA CARGA DETECTADA!
+          Processo: {{ processo_nome }}
+          PID: {{ processo_pid }}
+          Consumo de CPU: {{ processo_cpu }}%
+          Usuário: {{ processo_usuario.stdout }}
+          Nome completo: {{ user_fullname.stdout }}
