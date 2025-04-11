@@ -93,6 +93,10 @@
             categoria: "SCRIPT"
             mensagem: "Erro ao coletar processo mais consumidor de CPU. Nenhum dado retornado."
 
-    - name: Exibir saída final no formato script
+    - name: Exibir saída final no formato script (multilinha)
       debug:
-        msg: "{{ status }};{{ categoria }};{{ mensagem }};{{ trace }}"
+        msg: |
+          STATUS: {{ status }}
+          CATEGORIA: {{ categoria }}
+          MENSAGEM: {{ mensagem }}
+          TRACE: {{ trace }}
