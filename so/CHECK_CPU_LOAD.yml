@@ -1,5 +1,5 @@
 ---
-- name: Verificar carga da CPU e identificar ofensores (versão completa)
+- name: Verificar carga da CPU e identificar ofensores (versão completa e corrigida)
   hosts: all
   gather_facts: true
   vars:
@@ -33,7 +33,7 @@
             load_average: "{{ uptime_output.stdout | regex_search('load average: ([0-9\\.]+)', '\\1') | float }}"
 
     - name: Verificar se load está abaixo do limite
-      when: load_average < load_threshold
+      when: (load_average | float) < (load_threshold | float)
       set_fact:
         trace: "{{ trace }} Load average abaixo do limite |"
         status: "OK"
@@ -41,7 +41,7 @@
         mensagem: "Load average está menor do que o alerta. LIMITE: {{ load_threshold }} ATUAL: {{ load_average }}"
 
     - name: Verificar se load está acima do limite
-      when: load_average >= load_threshold
+      when: (load_average | float) >= (load_threshold | float)
       block:
 
         - name: "[TRACE] Load average acima do permitido"
