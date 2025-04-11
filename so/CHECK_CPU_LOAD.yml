@@ -28,10 +28,9 @@
           register: uptime_output
           changed_when: false
 
-    - name: Extrair valor do load average de 1 minuto
-      set_fact:
-        load_average: "{{ (uptime_output.stdout | regex_findall('[0-9]+\\.[0-9]+'))[0] | float }}"
-
+        - name: Extrair valor do load average de 1 minuto
+          set_fact:
+            load_average: "{{ (uptime_output.stdout | regex_findall('[0-9]+\\.[0-9]+'))[0] | float }}"
 
     - name: Verificar se load está abaixo do limite
       when: (load_average | float) < (load_threshold | float)
@@ -54,30 +53,41 @@
           register: top_process
           changed_when: false
 
-        - name: Extrair dados do processo
-          set_fact:
-            processo_info: "{{ top_process.stdout | regex_replace(' +', ' ') | split(' ') }}"
-            processo_pid: "{{ processo_info[0] }}"
-            processo_nome: "{{ processo_info[1] }}"
-            processo_cpu: "{{ processo_info[2] }}"
-            processo_user: "{{ processo_info[3] }}"
+        - name: Verificar se o comando ps retornou saída
+          when: top_process.stdout is defined and top_process.stdout | trim != ""
+          block:
 
-        - name: Obter nome completo do usuário
-          ansible.builtin.shell: "getent passwd {{ processo_user }} | cut -d ':' -f 5"
-          register: user_fullname
-          changed_when: false
+            - name: Extrair dados do processo
+              set_fact:
+                processo_info: "{{ top_process.stdout | regex_replace(' +', ' ') | split(' ') }}"
+                processo_pid: "{{ processo_info[0] }}"
+                processo_nome: "{{ processo_info[1] }}"
+                processo_cpu: "{{ processo_info[2] }}"
+                processo_user: "{{ processo_info[3] }}"
 
-        - name: Definir status NOK e mensagem detalhada
+            - name: Obter nome completo do usuário
+              ansible.builtin.shell: "getent passwd {{ processo_user }} | cut -d ':' -f 5"
+              register: user_fullname
+              changed_when: false
+
+            - name: Definir status NOK e mensagem detalhada
+              set_fact:
+                status: "NOK"
+                categoria: "RETRY"
+                mensagem: >-
+                  MAIOR PROCESSO CONSUMIDOR DE CPU: {{ processo_nome }},
+                  CONSUMO: {{ processo_cpu }}%,
+                  USUÁRIO: {{ processo_user }},
+                  RESPONSÁVEL: {{ user_fullname.stdout.strip() }},
+                  LIMITE: {{ load_threshold }},
+                  ATUAL: {{ load_average }}
+
+        - name: [FALHA] Nenhum processo retornado pelo ps
+          when: top_process.stdout is not defined or top_process.stdout | trim == ""
           set_fact:
             status: "NOK"
-            categoria: "RETRY"
-            mensagem: >-
-              MAIOR PROCESSO CONSUMIDOR DE CPU: {{ processo_nome }},
-              CONSUMO: {{ processo_cpu }}%,
-              USUÁRIO: {{ processo_user }},
-              RESPONSÁVEL: {{ user_fullname.stdout.strip() }},
-              LIMITE: {{ load_threshold }},
-              ATUAL: {{ load_average }}
+            categoria: "SCRIPT"
+            mensagem: "Erro ao coletar processo mais consumidor de CPU. Nenhum dado retornado."
 
     - name: Exibir saída final no formato script
       debug:
