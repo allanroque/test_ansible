@@ -39,7 +39,10 @@
         trace: "{{ trace }} Load average abaixo do limite |"
         status: "OK"
         categoria: "SUCESSO_RETRY"
-        mensagem: "Load average está menor do que o alerta. LIMITE: {{ load_threshold }} ATUAL: {{ load_average }}"
+        mensagem: >-
+          Load average está menor do que o alerta.
+          LIMITE: {{ load_threshold }}
+          ATUAL: {{ load_average }}
 
     - name: Verificar se load está acima do limite
       when: (load_average | float) >= (load_threshold | float)
@@ -49,8 +52,8 @@
           set_fact:
             trace: "{{ trace }} Load average acima do permitido |"
 
-        - name: Obter maior processo consumidor de CPU
-          ansible.builtin.shell: "ps -eo pid,comm,%cpu,user --sort=-%cpu | awk 'NR==2'"
+        - name: Obter maior processo consumidor de CPU com delimitador confiável
+          ansible.builtin.shell: "ps -eo pid='PID',comm='CMD',%cpu='CPU',user='USER' --sort=-%cpu | awk 'NR==2' | tr -s ' ' | tr ' ' '|'"
           register: top_process
           changed_when: false
 
@@ -62,10 +65,11 @@
         - name: Extrair variáveis individuais do processo
           when: processo_disponivel
           set_fact:
-            processo_pid: "{{ (top_process.stdout | regex_replace(' +', ' ') | split(' '))[0] | default('') }}"
-            processo_nome: "{{ (top_process.stdout | regex_replace(' +', ' ') | split(' '))[1] | default('') }}"
-            processo_cpu: "{{ (top_process.stdout | regex_replace(' +', ' ') | split(' '))[2] | default('') }}"
-            processo_user: "{{ (top_process.stdout | regex_replace(' +', ' ') | split(' '))[3] | default('') }}"
+            processo_info: "{{ top_process.stdout.split('|') }}"
+            processo_pid: "{{ processo_info[0] | default('') }}"
+            processo_nome: "{{ processo_info[1] | default('') }}"
+            processo_cpu: "{{ processo_info[2] | default('') }}"
+            processo_user: "{{ processo_info[3] | default('') }}"
 
         - name: Obter nome completo do usuário
           when: processo_disponivel and processo_user != ""
@@ -79,11 +83,12 @@
             status: "NOK"
             categoria: "RETRY"
             mensagem: >-
-              MAIOR PROCESSO CONSUMIDOR DE CPU: {{ processo_nome }},
-              CONSUMO: {{ processo_cpu }}%,
-              USUÁRIO: {{ processo_user }},
-              RESPONSÁVEL: {{ user_fullname.stdout.strip() }},
-              LIMITE: {{ load_threshold }},
+              MAIOR PROCESSO CONSUMIDOR DE CPU: {{ processo_nome }}
+              PID: {{ processo_pid }}
+              CONSUMO: {{ processo_cpu }}%
+              USUÁRIO: {{ processo_user }}
+              RESPONSÁVEL: {{ user_fullname.stdout.strip() }}
+              LIMITE: {{ load_threshold }}
               ATUAL: {{ load_average }}
 
         - name: "[FALHA] Nenhum processo retornado pelo ps"
@@ -93,10 +98,11 @@
             categoria: "SCRIPT"
             mensagem: "Erro ao coletar processo mais consumidor de CPU. Nenhum dado retornado."
 
-    - name: Exibir saída final no formato script (multilinha)
+    - name: Exibir saída final no formato multilinha
       debug:
         msg: |
           STATUS: {{ status }}
           CATEGORIA: {{ categoria }}
-          MENSAGEM: {{ mensagem }}
+          MENSAGEM:
+          {{ mensagem }}
           TRACE: {{ trace }}
