@@ -1,5 +1,5 @@
 ---
-- name: Verificar carga da CPU com fallback
+- name: Verificar carga da CPU com fallback e comparação segura
   hosts: all
   gather_facts: true
   vars:
@@ -7,7 +7,7 @@
 
   tasks:
 
-    - name: Tentar obter load_average dos facts
+    - name: Tentar obter load_average dos facts (caso esteja disponível)
       set_fact:
         load_average: "{{ ansible_facts.ansible_loadavg['1m'] | float }}"
       when: ansible_facts.ansible_loadavg is defined
@@ -26,9 +26,9 @@
 
     - name: Comparar carga com limite
       set_fact:
-        cpu_status: "{{ 'OK' if load_average < load_threshold else 'NOK' }}"
+        cpu_status: "{{ 'OK' if (load_average | float) < (load_threshold | float) else 'NOK' }}"
         cpu_message: >-
-          {% if load_average < load_threshold %}
+          {% if (load_average | float) < (load_threshold | float) %}
             Load abaixo do limite ({{ load_average }} < {{ load_threshold }})
           {% else %}
             Load acima do limite ({{ load_average }} >= {{ load_threshold }})
