@@ -3,21 +3,13 @@
   hosts: all
   gather_facts: true
   vars:
-    load_threshold: 2.00  # ajuste conforme necessário
+    load_threshold: 2.00
 
   tasks:
 
-    - name: Obter carga média da CPU
-      ansible.builtin.shell: uptime
-      register: uptime_output
-
-    - name: Extrair load average de 1 minuto (como string)
+    - name: Obter load average a partir dos facts
       set_fact:
-        load_average_raw: "{{ uptime_output.stdout | regex_search('load average: ([0-9\\.]+)', '\\1') }}"
-
-    - name: Converter load average para float
-      set_fact:
-        load_average: "{{ load_average_raw | float }}"
+        load_average: "{{ ansible_facts.ansible_loadavg[0] | float }}"
 
     - name: Comparar carga com limite
       set_fact:
@@ -33,10 +25,11 @@
       debug:
         msg: "Status: {{ cpu_status }} | Mensagem: {{ cpu_message }}"
 
-    - name: Obter maior processo consumidor de CPU (caso load esteja alto)
+    - name: Obter processo com maior uso de CPU (caso necessário)
       when: cpu_status == "NOK"
-      ansible.builtin.shell: "ps -eo pid,comm,%cpu --sort=-%cpu | head -n 2 | tail -n 1"
+      ansible.builtin.shell: "ps -eo pid,comm,%cpu --sort=-%cpu | awk 'NR==2'"
       register: top_cpu_process
+      changed_when: false
 
     - name: Extrair dados do processo
       when: cpu_status == "NOK"
@@ -46,15 +39,13 @@
         processo_nome: "{{ processo_info[1] }}"
         processo_cpu: "{{ processo_info[2] }}"
 
-    - name: Obter usuário do processo
+    - name: Obter dados do usuário do processo
       when: cpu_status == "NOK"
-      ansible.builtin.shell: "ps -o user= -p {{ processo_pid }}"
-      register: processo_usuario
-
-    - name: Obter nome completo do usuário
-      when: cpu_status == "NOK"
-      ansible.builtin.shell: "getent passwd {{ processo_usuario.stdout }} | cut -d ':' -f 5"
-      register: user_fullname
+      ansible.builtin.user:
+        name: "{{ lookup('pipe', 'ps -o user= -p ' + processo_pid) }}"
+        update_password: on_create
+      register: user_info
+      ignore_errors: true  # evita erro caso o usuário seja do sistema ou não tenha entrada no /etc/passwd
 
     - name: Exibir informações detalhadas em caso de load alto
       when: cpu_status == "NOK"
@@ -64,5 +55,5 @@
           Processo: {{ processo_nome }}
           PID: {{ processo_pid }}
           Consumo de CPU: {{ processo_cpu }}%
-          Usuário: {{ processo_usuario.stdout }}
-          Nome completo: {{ user_fullname.stdout }}
+          Usuário: {{ lookup('pipe', 'ps -o user= -p ' + processo_pid) }}
+          Nome completo: {{ user_info.user.get('comment', 'N/A') if user_info is defined else 'Indisponível' }}
