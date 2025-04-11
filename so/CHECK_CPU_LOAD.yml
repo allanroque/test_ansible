@@ -1,33 +1,13 @@
 ---
-- name: Verificar carga da CPU e identificar maiores consumidores
+- name: Coletar e exibir os facts do host
   hosts: all
-  gather_facts: true
-  gather_subset:
-    - all
-  vars:
-    load_threshold: 2.00
+  gather_facts: false  # desliga a coleta automática
 
   tasks:
 
-    - name: Verificar se ansible_loadavg está presente
-      fail:
-        msg: "O fato ansible_loadavg não está disponível neste host."
-      when: ansible_facts.ansible_loadavg is not defined
+    - name: Coletar todos os facts disponíveis
+      ansible.builtin.setup:
 
-    - name: Obter load average a partir dos facts
-      set_fact:
-        load_average: "{{ ansible_facts.ansible_loadavg[0] | float }}"
-
-    - name: Comparar carga com limite
-      set_fact:
-        cpu_status: "{{ 'OK' if load_average < load_threshold else 'NOK' }}"
-        cpu_message: >-
-          {% if load_average < load_threshold %}
-            Load abaixo do limite ({{ load_average }} < {{ load_threshold }})
-          {% else %}
-            Load acima do limite ({{ load_average }} >= {{ load_threshold }})
-          {% endif %}
-
-    - name: Mostrar status
+    - name: Exibir todos os facts (com filtro opcional)
       debug:
-        msg: "Status: {{ cpu_status }} | Mensagem: {{ cpu_message }}"
+        var: ansible_facts
