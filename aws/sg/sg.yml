@@ -11,21 +11,10 @@
     aws_region: "us-east-2"
     sg_name: "SG-ansible-lab"
     sg_description: "Security Group gerenciado via Ansible"
-    vpc_id: ""  # Substitua pelo VPC correto
+    vpc_id: "vpc-0a14caf7491ebb58c"
     porta_liberada: 8080
 
   tasks:
-
-    - name: Obter informações dos VPCs
-      amazon.aws.ec2_vpc_net_info:
-        region: "{{ aws_region }}"
-      register: vpcs_info
-
-    - name: Exibir lista de VPCs
-      debug:
-        msg: "{{ item.id }} - {{ item.tags.Name | default('Sem nome') }}"
-      loop: "{{ vpcs_info.vpcs }}"
-
     - name: Criar ou garantir o Security Group
       amazon.aws.ec2_group:
         name: "{{ sg_name }}"
@@ -38,11 +27,11 @@
             to_port: "{{ porta_liberada }}"
             cidr_ip: 0.0.0.0/0
         rules_egress:
-          - proto: -1  # todas as portas
+          - proto: -1
             cidr_ip: 0.0.0.0/0
         state: present
       register: sg_result
 
-    - name: Exibir resultado da criação do Security Group
+    - name: Exibir resultado
       debug:
-        msg: "SG criado ou atualizado: ID = {{ sg_result.group_id }}"
+        msg: "SG criado ou atualizado com sucesso: {{ sg_result.group_id }}"
