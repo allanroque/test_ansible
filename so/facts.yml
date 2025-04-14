@@ -1,0 +1,8 @@
+---
+- name: Coletar e mostrar gather_facts de um host
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Exibir todos os facts coletados
+      debug:
+        var: ansible_facts
