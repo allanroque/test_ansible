@@ -8,16 +8,12 @@
     - amazon.aws
 
   vars:
-    aws_access_key: ""
-    aws_secret_key: ""
     aws_region: "us-east-2"
 
   tasks:
     - name: Obter informações das instâncias EC2
       amazon.aws.ec2_instance_info:
         region: "{{ aws_region }}"
-        access_key: "{{ aws_access_key }}"
-        secret_key: "{{ aws_secret_key }}"
       register: ec2_info
 
     - name: Exibir informações básicas das instâncias
