@@ -1,0 +1,27 @@
+---
+- name: Deletar bucket S3
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  collections:
+    - amazon.aws
+
+  vars:
+    bucket_name: ""  # ou passe via -e
+    aws_access_key: ""
+    aws_secret_key: ""
+    aws_region: "us-east-2"
+
+  tasks:
+    - name: Deletar bucket S3 (force = true apaga conteúdo interno)
+      amazon.aws.s3_bucket:
+        name: "{{ bucket_name }}"
+        state: absent
+        region: "{{ aws_region }}"
+        force: true  # remove objetos, versões e delete markers antes
+      register: bucket_deletion
+
+    - name: Confirmar bucket removido
+      debug:
+        msg: "Bucket '{{ bucket_name }}' foi deletado com sucesso!"

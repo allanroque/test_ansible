@@ -1,0 +1,28 @@
+---
+- name: Monitorar uso de disco com avaliação simples de threshold
+  hosts: all
+  gather_facts: true
+  vars:
+    uso_minimo_para_alarme: 80  # único limite para todos os discos
+
+  tasks:
+    - name: Avaliar uso de disco e exibir status
+      vars:
+        tamanho_total_gb: "{{ (item.size_total / 1024 / 1024 / 1024) | round(1) }}"
+        tamanho_livre_gb: "{{ (item.size_available / 1024 / 1024 / 1024) | round(1) }}"
+        uso_percentual: "{{ ((item.size_total - item.size_available) / item.size_total * 100) | round(1) }}"
+        status: "{{ 'ALERTA' if uso_percentual | float > uso_minimo_para_alarme | float else 'OK' }}"
+        mensagem: >-
+          {% if status == 'ALERTA' %}
+            ALERTA: {{ item.mount }} está com {{ uso_percentual }}% de uso (limite: {{ uso_minimo_para_alarme }}%)
+          {% else %}
+            OK: {{ item.mount }} com uso de {{ uso_percentual }}%
+          {% endif %}
+      loop: "{{ ansible_mounts }}"
+      loop_control:
+        label: "{{ item.mount }}"
+      debug:
+        msg: |
+          {{ mensagem }}
+          - Espaço total: {{ tamanho_total_gb }} GB
+          - Espaço disponível: {{ tamanho_livre_gb }} GB

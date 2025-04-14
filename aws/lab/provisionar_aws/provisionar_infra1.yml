@@ -1,0 +1,221 @@
+---
+- name: Provisionar ambiente AWS com 4 instâncias RHEL9 (teste1, teste2, teste3, teste4)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  collections:
+    - amazon.aws
+
+  vars:
+    aws_access_key: ""
+    aws_secret_key: ""
+    aws_region: "us-east-2"
+    # CIDR da VPC e da subnet pública
+    vpc_cidr: "10.10.0.0/16"
+    subnet_public_cidr: "10.10.1.0/24"
+    # Zona de disponibilidade (ajustar para a sua região)
+    availability_zone: "us-east-2a"
+
+    # AMI de RHEL 9 x86_64 em us-east-2 (exemplo)
+    # Ajuste conforme a região e o RHEL 9 que desejar
+    rhel9_x86_64_ami: "ami-0f6c1051253397fef"
+
+    # Nome da Key Pair e caminho da sua chave pública local
+    key_pair_name: "MinhaChaveAWS"
+    # cat ~/.ssh/minha_chave_aws.pub temp key
+    key_material: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC5572awUOy9N4oPII7e+fXY6ofzAnOGfKrp6R8BQSlT5hAA5Il59IKXynPmjvkjjt1YmY8J5a3dUMey2je6HRy9s/46AfP1PZlj6Rid8JkqK9JuAe5wZb/iJGq6BDOyslKT7IxQRZrjUzgRpjWYAPATJFEh1iYGBl9YJxRM9RPof9t7bZUBsx+1GfiyPaqBeSPC/9NBKLj4T1azf2UvJZ/1ljJ6vTsCYpsh0YMeVcua6DgKtFvB17b6xFZqDITviCo+znPAyYmgRugu752eM/u0MrOkdVKOqNixNw6iYaRhEWI1ZpqA/UrSBVcwMA5pSMqiCYQT2qj3vR02l0KZF9n lab-ansible"
+    #local_public_key_path: "~/.ssh/minha_chave_aws.pub"
+
+
+    # Tag para identificar os recursos no ambiente
+    env_tag: "Lab-Ansible"
+
+  tasks:
+    - name: Criar VPC com ec2_vpc_net (versão mais antiga)
+      amazon.aws.ec2_vpc_net:
+        name: "VPC-lab-ansible"
+        cidr_block: "10.10.0.0/16"
+        # Parâmetros antigos:
+        dns_hostnames: true
+        dns_support: true
+        state: present
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+      register: vpc
+
+# Descomentar se necessario
+ #   - name: Debug para ver a estrutura retornada
+ #     debug:
+ #       var: vpc
+      
+    - name: Criar Internet Gateway
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ vpc.vpc.id }}"
+        state: present
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+      register: igw
+
+    - name: Criar Subnet Pública
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ vpc.vpc.id }}"
+        cidr: "{{ subnet_public_cidr }}"
+        az: "{{ availability_zone }}"
+        state: present
+        map_public: true  # Permite IP público automaticamente
+        tags:
+          Name: "subnet-public-1"
+          Environment: "{{ env_tag }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+      register: subnet_public_1
+
+    - name: Criar e associar Route Table com a Subnet
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ vpc.vpc.id }}"
+        subnets:
+          - "{{ subnet_public_1.subnet.id }}"
+        routes:
+          - dest: "0.0.0.0/0"
+            gateway_id: "{{ igw.gateway_id }}"
+        tags:
+          Name: "rtb-public"
+          Environment: "{{ env_tag }}"
+        state: present
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+      register: rtb_public
+
+    - name: Criar Security Group com porta 22 liberada
+      amazon.aws.ec2_group:
+        name: "SG-lab-ansible"
+        description: "Security Group para SSH pub no lab"
+        vpc_id: "{{ vpc.vpc.id }}"
+        rules:
+          # Permite SSH de qualquer lugar (para laboratório)
+          - proto: tcp
+            ports: 22
+            cidr_ip: "0.0.0.0/0"
+          # (Opcional) permitir ICMP (ping)
+          - proto: icmp
+            from_port: 8
+            to_port: -1
+            cidr_ip: "0.0.0.0/0"
+        rules_egress:
+          # Permite todo tráfego de saída
+          - proto: all
+            cidr_ip: "0.0.0.0/0"
+        state: present
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+      register: sg
+
+# Descomentar se necessario
+#    - name: Debug para ver a estrutura retornada
+#      debug:
+#        var: sg
+
+    - name: Criar (ou garantir) Key Pair na AWS
+      amazon.aws.ec2_key:
+        name: "{{ key_pair_name }}"
+        key_material: "{{ key_material }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+        state: present
+
+    # ===================
+    # Criação das instâncias
+    # ===================
+
+    - name: Lançar instância t2.small - teste1
+      amazon.aws.ec2_instance:
+        name: "teste1"
+        image_id: "{{ rhel9_x86_64_ami }}"
+        instance_type: "t2.small"
+        key_name: "{{ key_pair_name }}"
+        vpc_subnet_id: "{{ subnet_public_1.subnet.id }}"
+        security_groups:
+          - "SG-lab-ansible"
+        wait: true
+        wait_timeout: 500
+        tags:
+          Name: "teste1"
+          Environment: "{{ env_tag }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+      register: ec2_teste1
+
+    - name: Lançar instância t2.small - teste2
+      amazon.aws.ec2_instance:
+        name: "teste2"
+        image_id: "{{ rhel9_x86_64_ami }}"
+        instance_type: "t2.small"
+        key_name: "{{ key_pair_name }}"
+        vpc_subnet_id: "{{ subnet_public_1.subnet.id }}"
+        security_groups:
+          - "SG-lab-ansible"
+        wait: true
+        wait_timeout: 500
+        tags:
+          Name: "teste2"
+          Environment: "{{ env_tag }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+      register: ec2_teste2
+
+    - name: Lançar instância t2.medium - teste3
+      amazon.aws.ec2_instance:
+        name: "teste3"
+        image_id: "{{ rhel9_x86_64_ami }}"
+        instance_type: "t2.medium"
+        key_name: "{{ key_pair_name }}"
+        vpc_subnet_id: "{{ subnet_public_1.subnet.id }}"
+        security_groups:
+          - "SG-lab-ansible"
+        wait: true
+        wait_timeout: 500
+        tags:
+          Name: "teste3"
+          Environment: "{{ env_tag }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+      register: ec2_teste3
+
+    - name: Lançar instância t2.medium - teste4
+      amazon.aws.ec2_instance:
+        name: "teste4"
+        image_id: "{{ rhel9_x86_64_ami }}"
+        instance_type: "t2.medium"
+        key_name: "{{ key_pair_name }}"
+        vpc_subnet_id: "{{ subnet_public_1.subnet.id }}"
+        security_groups:
+          - "SG-lab-ansible"
+        wait: true
+        wait_timeout: 500
+        tags:
+          Name: "teste4"
+          Environment: "{{ env_tag }}"
+        access_key: "{{ aws_access_key }}"
+        secret_key: "{{ aws_secret_key }}"
+        region: "{{ aws_region }}"
+      register: ec2_teste4
+
+
+
+    - name: Exibir informação das instâncias criadas
+      debug:
+        msg:
+          - "teste1 => {{ ec2_teste1.instance_ids }}"
+          - "teste2 => {{ ec2_teste2.instance_ids }}"
+          - "teste3 => {{ ec2_teste3.instance_ids }}"
+          - "teste4 => {{ ec2_teste4.instance_ids }}"

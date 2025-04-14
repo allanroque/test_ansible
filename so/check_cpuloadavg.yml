@@ -1,0 +1,56 @@
+---
+- name: Monitorar Load Average
+  hosts: all
+  gather_facts: true
+  vars:
+    limite_loadavg: 1.0
+
+  tasks:
+    - name: Exibir load average geral
+      debug:
+        var: ansible_loadavg
+
+    - name: Exibir load average de 1 minuto
+      debug:
+        msg: "Load Average (1m): {{ ansible_loadavg['1m'] }}"
+
+    - name: Exibir load average de 5 minutos
+      debug:
+        msg: "Load Average (5m): {{ ansible_loadavg['5m'] }}"
+
+    - name: Exibir load average de 15 minutos
+      debug:
+        msg: "Load Average (15m): {{ ansible_loadavg['15m'] }}"
+
+    - name: Definir status com base no limite
+      set_fact:
+        status: "{{ 'ALERTA' if ansible_loadavg['5m'] | float > limite_loadavg else 'OK' }}"
+
+    - name: Definir mensagem com base no status
+      set_fact:
+        mensagem: >-
+          {{ 'NOK Load alto!' if status == 'ALERTA' else 'OK Load dentro do esperado.' }}
+
+    - name: Exibir resultado final
+      debug:
+        msg: "Status: {{ status }} | Mensagem: {{ mensagem }} | Load(5m): {{ ansible_loadavg['5m'] }}"
+
+    - name: Listar top 3 processos consumidores de CPU (root)
+      shell: |
+        ps -eo user,pid,%cpu,comm --sort=-%cpu | awk '$1=="root"' | head -n 4
+      register: processos_root
+      changed_when: false
+
+    - name: Exibir ofensores root
+      debug:
+        msg: "{{ processos_root.stdout_lines }}"
+
+    - name: Listar top 3 processos consumidores de CPU (não-root)
+      shell: |
+        ps -eo user,pid,%cpu,comm --sort=-%cpu | awk '$1!="root"' | head -n 4
+      register: processos_users
+      changed_when: false
+
+    - name: Exibir ofensores não-root
+      debug:
+        msg: "{{ processos_users.stdout_lines }}"
