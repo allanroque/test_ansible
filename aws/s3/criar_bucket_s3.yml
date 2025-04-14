@@ -7,7 +7,7 @@
     aws_region: "us-east-2"
     s3_bucket_name: "meu-bucket-lab-ansible-{{ 9999 | random }}"
     obj_ownership: BucketOwnerEnforced
-    #object_ownership: BucketOwnerEnforced  BucketOwnerPreferred ObjectWriter
+    
   tasks:
     - name: Criar bucket S3
       amazon.aws.s3_bucket:
@@ -17,6 +17,3 @@
         region: "{{ aws_region }}"
       register: bucket_result
 
-    - name: Debug para ver a estrutura retornada
-      debug:
-        var: bucket_result
