@@ -4,20 +4,17 @@
   connection: local
   gather_facts: false
   vars:
-    aws_access_key: ""
-    aws_secret_key: ""
     aws_region: "us-east-2"
     s3_bucket_name: "meu-bucket-lab-ansible-{{ 9999 | random }}"
+    obj_ownership: BucketOwnerEnforced
     #object_ownership: BucketOwnerEnforced  BucketOwnerPreferred ObjectWriter
   tasks:
     - name: Criar bucket S3
       amazon.aws.s3_bucket:
         name: "{{ s3_bucket_name }}"
-        state: absente
-        object_ownership: BucketOwnerEnforced
+        state: present
+        object_ownership: "{{ obj_ownership }}"
         region: "{{ aws_region }}"
-        access_key: "{{ aws_access_key }}"
-        secret_key: "{{ aws_secret_key }}"
       register: bucket_result
 
     - name: Debug para ver a estrutura retornada
