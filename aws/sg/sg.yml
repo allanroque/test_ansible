@@ -1,0 +1,37 @@
+---
+- name: Gerenciar Security Group AWS - Liberação da porta 8080
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  collections:
+    - amazon.aws
+
+  vars:
+    aws_region: "us-east-2"
+    sg_name: "SG-ansible-lab"
+    sg_description: "Security Group gerenciado via Ansible"
+    vpc_id: "vpc-0123456789abcdef0"  # Substitua pelo VPC correto
+    porta_liberada: 8080
+
+  tasks:
+    - name: Criar ou garantir o Security Group
+      amazon.aws.ec2_group:
+        name: "{{ sg_name }}"
+        description: "{{ sg_description }}"
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            from_port: "{{ porta_liberada }}"
+            to_port: "{{ porta_liberada }}"
+            cidr_ip: 0.0.0.0/0
+        rules_egress:
+          - proto: -1  # todas as portas
+            cidr_ip: 0.0.0.0/0
+        state: present
+      register: sg_result
+
+    - name: Exibir resultado da criação do Security Group
+      debug:
+        msg: "SG criado ou atualizado: ID = {{ sg_result.group_id }}"
