@@ -1,0 +1,12 @@
+---
+- name: Criar uma organização no Ansible Automation Controller
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+
+  - name: Create organization
+    ansible.controller.organization:
+      name: "Foo"
+      description: "Foo bar organization"
+      state: present
