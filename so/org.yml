@@ -3,10 +3,22 @@
   hosts: localhost
   connection: local
   gather_facts: no
+  vars:
+    controller_user: student1
+    controller_pass: NjI3MzI1_1
+    controller_url: ansible-1.8p2b5.sandbox2772.opentlc.com
   tasks:
 
   - name: Create organization
     ansible.controller.organization:
       name: "Foo"
       description: "Foo bar organization"
+      controller_username: "{{ controller_user }}"
+      controller_password: "{{ controller_pass }}"
+      controller_host: "{{ controller_url }}"
+      validate_certs: False
       state: present
+    
+  - name: debug
+    debug:
+      var: controller_pass
